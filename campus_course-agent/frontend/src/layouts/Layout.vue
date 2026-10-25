@@ -40,12 +40,16 @@
             default-active="/manager/home"
           >
             <el-menu-item index="/manager/home">
-              <el-icon><icon-menu /></el-icon>
+              <el-icon><IconMenu /></el-icon>
               <span>系统首页</span>
             </el-menu-item>
             <el-menu-item index="/manager/user" v-if="userInfo?.role === 'admin'">
               <el-icon><User /></el-icon>
               <span>用户管理</span>
+            </el-menu-item>
+            <el-menu-item index="/manager/course" v-if="userInfo?.role === 'admin'">
+              <el-icon><Reading /></el-icon>
+              <span>课程管理</span>
             </el-menu-item>
           </el-menu>
         </el-aside>
@@ -61,7 +65,7 @@
 import router from '@/router'
 import { logout } from '@/utils/auth'
 import { useUser } from '@/utils/user'
-import { Menu as IconMenu, User } from '@element-plus/icons-vue'
+import { Menu as IconMenu, Reading, User } from '@element-plus/icons-vue'
 
 const { userInfo } = useUser()
 
