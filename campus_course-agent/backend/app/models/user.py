@@ -11,7 +11,7 @@ class User(Base):
         String(50), comment="账号", unique=True, nullable=False
     )
     password: Mapped[str] = mapped_column(String(255), comment="密码", nullable=False)
-    name: Mapped[str] = mapped_column(String(50), comment="名称", nullable=False)
+    name: Mapped[str] = mapped_column(String(50), comment="姓名", nullable=False)
     role: Mapped[str] = mapped_column(
         String(50), comment="角色：student-学生，admin-管理员", nullable=False
     )

@@ -20,6 +20,16 @@ from app.common.exceptions import (
 
 Base.metadata.create_all(bind=engine)  # 自动帮我们创数据库表
 
+# 兼容历史数据库：course 表缺少 code 列时自动补齐（create_all 不会改已有表）
+from sqlalchemy import inspect, text as sa_text
+
+_inspector = inspect(engine)
+if "course" in _inspector.get_table_names():
+    _cols = {c["name"] for c in _inspector.get_columns("course")}
+    if "code" not in _cols:
+        with engine.begin() as conn:
+            conn.execute(sa_text("ALTER TABLE course ADD COLUMN code VARCHAR(50) NULL COMMENT '课程代码'"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
