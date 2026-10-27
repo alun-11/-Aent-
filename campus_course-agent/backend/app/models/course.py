@@ -4,7 +4,7 @@ from app.database import Base
 
 
 class Course(Base):
-    __tablename__ = "course"
+    __tablename__ = "courses"
     __table_args__ = {"comment": "课程信息表"}
 
     name: Mapped[str] = mapped_column(

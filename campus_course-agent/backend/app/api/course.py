@@ -48,4 +48,4 @@ def delete_course(
     db: Session = Depends(get_db),
 ):
     course_service.delete_course(db, course_id)
-    return Response.success(message="删除成功")
+    return Response.success()

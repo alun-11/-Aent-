@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from app.config import UPLOAD_DIR
-from app.models.user import User
+from app.models import *
 from app.database import Base, engine
 from app.api import api
 from starlette.middleware.cors import CORSMiddleware
@@ -18,17 +18,33 @@ from app.common.exceptions import (
     global_excpetion_hadler,
 )
 
-Base.metadata.create_all(bind=engine)  # 自动帮我们创数据库表
-
-# 兼容历史数据库：course 表缺少 code 列时自动补齐（create_all 不会改已有表）
 from sqlalchemy import inspect, text as sa_text
 
+# 兼容历史数据库：旧表名（单数）改名成复数，避免 create_all 新建空表导致旧数据查不到
 _inspector = inspect(engine)
-if "course" in _inspector.get_table_names():
-    _cols = {c["name"] for c in _inspector.get_columns("course")}
+_existing_tables = set(_inspector.get_table_names())
+_rename_pairs = [
+    f"`{old}` TO `{new}`"
+    for old, new in (("course", "courses"), ("schedule", "schedules"))
+    if old in _existing_tables and new not in _existing_tables
+]
+if _rename_pairs:
+    with engine.begin() as conn:
+        conn.execute(sa_text("RENAME TABLE " + ", ".join(_rename_pairs)))
+
+Base.metadata.create_all(bind=engine)  # 自动帮我们创数据库表
+
+# 兼容历史数据库：courses 表缺少 code 列时自动补齐（create_all 不会改已有表）
+_inspector = inspect(engine)
+if "courses" in _inspector.get_table_names():
+    _cols = {c["name"] for c in _inspector.get_columns("courses")}
     if "code" not in _cols:
         with engine.begin() as conn:
-            conn.execute(sa_text("ALTER TABLE course ADD COLUMN code VARCHAR(50) NULL COMMENT '课程代码'"))
+            conn.execute(
+                sa_text(
+                    "ALTER TABLE courses ADD COLUMN code VARCHAR(50) NULL COMMENT '课程代码'"
+                )
+            )
 
 
 @asynccontextmanager

@@ -19,23 +19,23 @@ def list_courses(db: Session, keywords: str | None = None) -> list[CourseRespons
             )
         )
     rows = query.order_by(Course.id.desc()).all()
-    return [CourseResponse.model_validate(row) for row in rows]
+    return [CourseResponse.model_validate(r) for r in rows]
 
 
-def create_course(db: Session, course_data: CourseCreate) -> CourseResponse:
+def create_course(db: Session, data: CourseCreate) -> CourseResponse:
     """新增课程"""
-    if not course_data.name.strip():
+    name = (data.name or "").strip()
+    if not name:
         raise BusinessException(message="课程名称不能为空")
-    exist = db.query(Course).filter_by(name=course_data.name.strip()).first()
-    if exist:
+    if db.query(Course).filter_by(name=name).first():
         raise BusinessException(message="课程名称已存在")
+
     course = Course(
-        name=course_data.name.strip(),
-        code=(course_data.code or "").strip() or None,
-        password=(course_data.password or "").strip(),
-        description=(course_data.description or "").strip(),
-        role="student",
-        status=course_data.status if course_data.status in (0, 1) else 1,
+        name=name,
+        code=(data.code or "").strip() or None,
+        password=(data.password or "ENG101").strip() or "ENG101",
+        description=(data.description or "").strip() or None,
+        status=data.status if data.status in (0, 1) else 1,
     )
     db.add(course)
     db.commit()
@@ -43,39 +43,42 @@ def create_course(db: Session, course_data: CourseCreate) -> CourseResponse:
     return CourseResponse.model_validate(course)
 
 
-def delete_course(db: Session, course_id: int) -> None:
-    """删除课程"""
-    course = db.query(Course).filter_by(id=course_id).first()
-    if not course:
-        raise BusinessException(message="课程不存在")
-    db.delete(course)
-    db.commit()
-
-
-def update_course(db: Session, course_id: int, course_data: CourseUpdate) -> CourseResponse:
+def update_course(
+    db: Session, course_id: int, data: CourseUpdate
+) -> CourseResponse:
     """更新课程"""
-    course = db.query(Course).filter_by(id=course_id).first()
-    if not course:
+    row = db.query(Course).filter_by(id=course_id).first()
+    if not row:
         raise BusinessException(message="课程不存在")
-    if course_data.name is not None:
-        if not course_data.name.strip():
-            raise BusinessException(message="课程名称不能为空")
-        exist = (
+
+    payload = data.model_dump(exclude_unset=True, exclude_none=False)
+    # 对必填约束做清洗
+    for k in ("name", "code", "password", "description"):
+        if k in payload and isinstance(payload[k], str):
+            payload[k] = payload[k].strip() or None
+    # 名称唯一性校验（排除自己）
+    if payload.get("name"):
+        dup = (
             db.query(Course)
-            .filter(Course.name == course_data.name.strip(), Course.id != course_id)
+            .filter(Course.name == payload["name"], Course.id != course_id)
             .first()
         )
-        if exist:
+        if dup:
             raise BusinessException(message="课程名称已存在")
-        course.name = course_data.name.strip()
-    if course_data.code is not None:
-        course.code = course_data.code.strip() or None
-    if course_data.password is not None:
-        course.password = course_data.password.strip()
-    if course_data.description is not None:
-        course.description = course_data.description.strip()
-    if course_data.status is not None:
-        course.status = course_data.status if course_data.status in (0, 1) else 1
+
+    for field, value in payload.items():
+        if value is not None:
+            setattr(row, field, value)
+
     db.commit()
-    db.refresh(course)
-    return CourseResponse.model_validate(course)
+    db.refresh(row)
+    return CourseResponse.model_validate(row)
+
+
+def delete_course(db: Session, course_id: int) -> None:
+    """删除课程"""
+    row = db.query(Course).filter_by(id=course_id).first()
+    if not row:
+        raise BusinessException(message="课程不存在")
+    db.delete(row)
+    db.commit()
